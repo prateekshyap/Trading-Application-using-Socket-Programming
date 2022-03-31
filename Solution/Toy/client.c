@@ -79,20 +79,20 @@ int main(int argc, char const *argv[])
 {
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
-    char hello[500];
+    char buffer[500];
     char * temp;
     char buffer[1024] = {0};
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) //create a socket
     {
         printf("\n Socket creation error \n");
         return -1;
     }
-   
+
+    //types of sockets created
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
        
-    // Convert IPv4 and IPv6 addresses from text to binary form
-    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0) 
+    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) //convert IPv4 and IPv6 addresses from text to binary form
     {
         printf("\nInvalid address/ Address not supported \n");
         return -1;
@@ -107,10 +107,10 @@ int main(int argc, char const *argv[])
     valread = read (sock, temp, 1024);
     printf("Server: %s", temp);
     //free(temp);
-    while (strcmp(hello,"logout") != 0)
+    while (strcmp(buffer,"logout") != 0)
     {
-        scanf("%s",hello);
-        send(sock , hello , strlen(hello) , 0);
+        scanf("%s",buffer);
+        send(sock , buffer , strlen(buffer) , 0);
         temp = malloc(1024*sizeof(char));
         valread = read (sock, temp, 1024);
         printf("Server: %s\n",temp);
