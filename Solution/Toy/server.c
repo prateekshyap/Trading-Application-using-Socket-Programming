@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
                 }
             }
         }
+        
         for (i = 0; i < max_clients; i++) //for all other operations
         {  
             sd = client_socket[i];  
@@ -162,6 +163,11 @@ int main(int argc, char *argv[])
                         printf("Host disconnected, ip %s ,port %d \n", inet_ntoa(address.sin_addr), ntohs(address.sin_port));
                         close(sd); //close the socket
                         client_socket[i] = 0; //mark 0 in the list
+                    }
+                    else
+                    {
+                        temp = "What are you saying?";
+                        send(sd, temp, strlen(temp), 0);
                     }
                 }
             }
