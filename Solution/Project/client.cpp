@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 	int clientSocket = 0, serverValue;
 	struct sockaddr_in serverAddress;
 	char buffer[1024] = {0};
-	char * temp;
+	char * temp, * welcomeMessage, * clientChoice;
 	if ((clientSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) //create a new socket
 	{
 		cout << "Socket Creation Failed" << endl;
@@ -37,16 +37,20 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	temp = (char *)malloc(1024*sizeof(char));
-	serverValue = read(clientSocket, temp, 1024);
-	cout << temp << endl;
-	while (strcmp(buffer, "logout") != 0)
+	welcomeMessage = (char *)malloc(1024*sizeof(char));
+	serverValue = read(clientSocket, temp, 1024); //getting welcome message from server
+	while (strcmp(buffer, "close") != 0) //till client is not closed
 	{
-		cin >> buffer;
-		send(clientSocket, buffer, strlen(buffer), 0);
-		temp = (char *)malloc(1024*sizeof(char));
-		serverValue = read(clientSocket, temp, 1024);
-		cout << temp << endl;
+		cout << welcomeMessage << endl; //print welcome message from server
+		while (strcmp(clientChoice, "logout") != 0) //till the client doesn't logout
+		{
+			cin >> clientChoice; //register/login/quit
+			send(clientSocket, clientChoice, strlen(clientChoice), 0); //send the choice to server
+			temp = (char *)malloc(1024*sizeof(char));
+			serverValue = read(clientSocket, temp, 1024);
+			cout << temp << endl;
+		}
 	}
+	cout << "Client Closed" << endl;
 	return 0;
 }
