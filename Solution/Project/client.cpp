@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 	int PORT = atoi(argv[2]);
 	int clientSocket = 0, serverValue;
 	struct sockaddr_in serverAddress;
-	char buffer[1024] = {0};
+	char buffer[1024] = "open";
 	char * temp, * welcomeMessage, * clientChoice;
 	if ((clientSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) //create a new socket
 	{
@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
 
 	welcomeMessage = (char *)malloc(1024*sizeof(char));
 	serverValue = read(clientSocket, temp, 1024); //getting welcome message from server
+	cout << "reading welcome message" << endl;
 	while (strcmp(buffer, "close") != 0) //till client is not closed
 	{
 		cout << welcomeMessage << endl; //print welcome message from server

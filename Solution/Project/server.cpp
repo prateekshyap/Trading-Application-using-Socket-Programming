@@ -14,6 +14,30 @@ using namespace std;
 #define TRUE 1
 #define FALSE 0
 
+class Item
+{
+	int itemId, price;
+	string itemName;
+	//buybook sellbook queues - array of order
+};
+
+class Trader
+{
+	int userId;
+	string password, userName;
+	//bool isLoggedIn;
+	//queue of orders with status
+};
+
+class Order
+{
+	Trader trader, match;
+	Item item;
+	int orderId, quantity, price;
+	char type;
+	//char status;
+};
+
 int main(int argc, char *argv[])
 {
 	int noOfTraders = 5;
@@ -22,6 +46,12 @@ int main(int argc, char *argv[])
 	int masterSocket, addressLength, newSocket, activity, i, clientValue, sd, maxSd;
 	int * traders = new int[noOfTraders];
 	struct sockaddr_in address;
+
+	//array of Item
+
+	//vector of registered Traders
+
+	//vector of logged in Traders
 	
 	char buffer[1024];
 	const char * temp;
@@ -118,13 +148,19 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
+		cout << "working 1" << endl;
 		for (i = 0; i < noOfTraders; ++i)
 		{
 			sd = traders[i];
+
+		cout << "working 2" << endl;
 			if (FD_ISSET(sd,&fds)) //if there is some request from any trader
 			{
+
+		cout << "working 3" << endl;
 				if ((clientValue = read(sd, buffer, sizeof(buffer))) == 0) //if the request is for closing
 				{
+		cout << "working 4" << endl;
 					//print the host details
 					getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
 					cout << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
@@ -133,6 +169,7 @@ int main(int argc, char *argv[])
 				}
 				else //otherwise reading from client
 				{
+		cout << "working 5" << endl;
 					buffer[clientValue] = '\0';
 					if (strcmp(buffer,"register") == 0) //if client asking to register
 					{
@@ -180,7 +217,7 @@ int main(int argc, char *argv[])
                     {
                         temp = "What are you saying?";
                         send(sd, temp, strlen(temp), 0);
-                    }*/
+                    }
 				}
 			}
 		}
