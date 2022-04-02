@@ -40,11 +40,11 @@ class Order
 
 int main(int argc, char *argv[])
 {
-	int noOfTraders = 5;
+	int noOfTraders = 5, maxClients = 5;
 	int PORT = atoi(argv[1]);
 	int option = TRUE;
 	int masterSocket, addressLength, newSocket, activity, i, clientValue, sd, maxSd;
-	int * traders = new int[noOfTraders];
+	int * allClients = new int[noOfTraders];
 	struct sockaddr_in address;
 
 	//array of Item
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 	const char * welcomeMessage = "==============================\nWelcome to Trading Application\n==============================\nEnter your choice (register/login/quit)-\n";
 
 	for (i = 0; i < noOfTraders; ++i)
-		traders[i] = 0;
+		allClients[i] = 0;
 
 	
 	//socket() creates a socket in the specified domain and its specified type
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 	cout << "=====================================" << endl;
 	cout << "Port: " << PORT << endl;
 
-	if (listen(masterSocket, noOfTraders) < 0) //specify maximum number of traders those can be served simultaneously
+	if (listen(masterSocket, noOfTraders) < 0) //specify maximum number of allClients those can be served simultaneously
 	{
 		perror("Could not Listen");
 		exit(EXIT_FAILURE);
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 		maxSd = masterSocket; //highest file descriptor number
 		for (i = 0; i < noOfTraders; ++i) //add child sockets to the set
 		{
-			sd = traders[i]; //store socket descriptor
+			sd = allClients[i]; //store socket descriptor
 			if (sd > 0) FD_SET(sd, &fds); //if it is a valid socket descriptor then add to read set
 			if (sd > maxSd) maxSd = sd; //highest file descriptor number, need it for the select function
 		}
@@ -140,9 +140,9 @@ int main(int argc, char *argv[])
 
 			for (i = 0; i < noOfTraders; ++i)
 			{
-				if (traders[i] == 0)
+				if (allClients[i] == 0)
 				{
-					traders[i] = newSocket;
+					allClients[i] = newSocket;
 					cout << "Adding to list of sockets as " << i << endl;
 					break;
 				}
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 		cout << "working 1" << endl;
 		for (i = 0; i < noOfTraders; ++i)
 		{
-			sd = traders[i];
+			sd = allClients[i];
 
 		cout << "working 2" << endl;
 			if (FD_ISSET(sd,&fds)) //if there is some request from any trader
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
 					getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
 					cout << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
 					close(sd); //close the socket
-					traders[i] = 0;
+					allClients[i] = 0;
 				}
 				else //otherwise reading from client
 				{
@@ -211,7 +211,7 @@ int main(int argc, char *argv[])
 						getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
 						cout << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
 						close(sd); //close the socket
-						traders[i] = 0;
+						allClients[i] = 0;
                     }
                     else
                     {
