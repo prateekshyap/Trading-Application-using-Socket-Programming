@@ -13,8 +13,8 @@ int main(int argc, char *argv[])
 	int PORT = atoi(argv[2]);
 	int clientSocket = 0, serverValue;
 	struct sockaddr_in serverAddress;
-	char buffer[1024] = "open";
-	char * temp, * welcomeMessage, * clientChoice;
+	char buffer[1024] = {0};
+	char * temp;
 	if ((clientSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) //create a new socket
 	{
 		cout << "Socket Creation Failed" << endl;
@@ -37,21 +37,51 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	welcomeMessage = (char *)malloc(1024*sizeof(char));
-	serverValue = read(clientSocket, temp, 1024); //getting welcome message from server
-	cout << "reading welcome message" << endl;
-	while (strcmp(buffer, "close") != 0) //till client is not closed
+
+	temp = (char *)malloc(1024*sizeof(char));
+	serverValue = read(clientSocket, temp, 1024);
+	cout << temp << endl;
+
+	while (strcmp(buffer, "close") != 0)
 	{
-		cout << welcomeMessage << endl; //print welcome message from server
-		while (strcmp(clientChoice, "logout") != 0) //till the client doesn't logout
+		cout << "New Traders are welcome to register/login here" << endl;
+		while (strcmp(buffer, "logout") != 0)
 		{
-			cin >> clientChoice; //register/login/quit
-			send(clientSocket, clientChoice, strlen(clientChoice), 0); //send the choice to server
+			cin >> buffer;
+			//cout << buffer;
+			send(clientSocket, buffer, strlen(buffer), 0);
+
+			if (strcmp(buffer,"register") == 0) //if want to register
+			{
+				cout << "Name: ";
+				cin >> buffer;
+				send(clientSocket, buffer, strlen(buffer), 0);
+				cout << "User ID: ";
+				cin >> buffer;
+				send(clientSocket, buffer, strlen(buffer), 0);
+				cout << "Password: ";
+				cin >> buffer;
+				send(clientSocket, buffer, strlen(buffer), 0);
+			}
+			else if (strcmp(buffer,"login") == 0) //if want to login
+			{
+				cout << "User ID: ";
+				cin >> buffer;
+				send(clientSocket, buffer, strlen(buffer), 0);
+				cout << "Password: ";
+				cin >> buffer;
+				send(clientSocket, buffer, strlen(buffer), 0);
+			}
 			temp = (char *)malloc(1024*sizeof(char));
 			serverValue = read(clientSocket, temp, 1024);
 			cout << temp << endl;
 		}
+		cout << "Waiting for Traders... (Type close to close the client)" << endl;
+		cin >> buffer;
 	}
-	cout << "Client Closed" << endl;
+	send(clientSocket, buffer, strlen(buffer), 0);
+	temp = (char *)malloc(1024*sizeof(char));
+	serverValue = read(clientSocket, temp, 1024);
+	cout << temp << endl;
 	return 0;
 }

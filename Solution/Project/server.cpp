@@ -10,57 +10,32 @@ using namespace std;
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/time.h>
+#include <bits/stdc++.h>
+#include "datastructures.h"
 
 #define TRUE 1
 #define FALSE 0
-
-class Item
-{
-	int itemId, price;
-	string itemName;
-	//buybook sellbook queues - array of order
-};
-
-class Trader
-{
-	int userId;
-	string password, userName;
-	//bool isLoggedIn;
-	//queue of orders with status
-};
-
-class Order
-{
-	Trader trader, match;
-	Item item;
-	int orderId, quantity, price;
-	char type;
-	//char status;
-};
 
 int main(int argc, char *argv[])
 {
 	int noOfTraders = 5, maxClients = 5;
 	int PORT = atoi(argv[1]);
 	int option = TRUE;
-	int masterSocket, addressLength, newSocket, activity, i, clientValue, sd, maxSd;
-	int * allClients = new int[noOfTraders];
+	int masterSocket, addressLength, newSocket, activity, i, j, clientValue, sd, maxSd, traderIndex = 0;
+	int * allClients = new int[maxClients];
+	int * clientTraderMap = new int[maxClients];
+	Trader ** traderDetails = new Trader*[noOfTraders];
 	struct sockaddr_in address;
-
-	//array of Item
-
-	//vector of registered Traders
-
-	//vector of logged in Traders
+	set<string> uIds;
 	
-	char buffer[1024];
+	char buffer[1024], uName[100], uId[50], password[50], storedName[50], storedId[50], storedPw[50];
 	const char * temp;
 
 	fd_set fds; //represents file descriptor sets for select function, is a bit array
 
-	const char * welcomeMessage = "==============================\nWelcome to Trading Application\n==============================\nEnter your choice (register/login/quit)-\n";
+	const char * welcomeMessage = "==============================\nWelcome to Trading Application\n==============================\nEnter an option (register/login/quit):\n";
 
-	for (i = 0; i < noOfTraders; ++i)
+	for (i = 0; i < maxClients; ++i)
 		allClients[i] = 0;
 
 	
@@ -78,7 +53,6 @@ int main(int argc, char *argv[])
 	
 	//setsockopt() sets the socket options
 	//SO_REUSEADDR = Specifies that the rules used in validating addresses supplied to bind() should allow reuse of local addresses, if this is supported by the protocol. This option takes an int value. This is a Boolean option.
-	
 	if (setsockopt(masterSocket, SOL_SOCKET, SO_REUSEADDR, (char *)&option, sizeof(option)) < 0)
 	{
 		perror("Multiple Clients Support Failed");
@@ -101,21 +75,21 @@ int main(int argc, char *argv[])
 	cout << "=====================================" << endl;
 	cout << "Port: " << PORT << endl;
 
-	if (listen(masterSocket, noOfTraders) < 0) //specify maximum number of allClients those can be served simultaneously
+	if (listen(masterSocket, maxClients) < 0) //specify maximum number of clients those can be served simultaneously
 	{
 		perror("Could not Listen");
 		exit(EXIT_FAILURE);
 	}
 
 	addressLength = sizeof(address);
-	cout << "Waiting for Traders ..." << endl << endl;
+	cout << "Waiting for Clients ..." << endl << endl;
 
 	while (TRUE)
 	{
 		FD_ZERO(&fds); //initializes the file descriptor set fd_set to have zero bits for all file descriptors
 		FD_SET(masterSocket, &fds); //add master socket to fd_set
 		maxSd = masterSocket; //highest file descriptor number
-		for (i = 0; i < noOfTraders; ++i) //add child sockets to the set
+		for (i = 0; i < maxClients; ++i) //add child sockets to the set
 		{
 			sd = allClients[i]; //store socket descriptor
 			if (sd > 0) FD_SET(sd, &fds); //if it is a valid socket descriptor then add to read set
@@ -136,9 +110,9 @@ int main(int argc, char *argv[])
 			//sending welcome message to client
 			if (send(newSocket, welcomeMessage, strlen(welcomeMessage), 0) != strlen(welcomeMessage)) //send welcome message to client
 				perror("send");
-			cout << "Client " << newSocket << " is on" << endl;
+			cout << "Host " << inet_ntoa(address.sin_addr) << ", " << ntohs(address.sin_port) << " is on" << endl;
 
-			for (i = 0; i < noOfTraders; ++i)
+			for (i = 0; i < maxClients; ++i)
 			{
 				if (allClients[i] == 0)
 				{
@@ -148,19 +122,13 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
-		cout << "working 1" << endl;
-		for (i = 0; i < noOfTraders; ++i)
+		for (i = 0; i < maxClients; ++i)
 		{
 			sd = allClients[i];
-
-		cout << "working 2" << endl;
 			if (FD_ISSET(sd,&fds)) //if there is some request from any trader
 			{
-
-		cout << "working 3" << endl;
 				if ((clientValue = read(sd, buffer, sizeof(buffer))) == 0) //if the request is for closing
 				{
-		cout << "working 4" << endl;
 					//print the host details
 					getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
 					cout << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
@@ -169,18 +137,64 @@ int main(int argc, char *argv[])
 				}
 				else //otherwise reading from client
 				{
-		cout << "working 5" << endl;
 					buffer[clientValue] = '\0';
-					if (strcmp(buffer,"register") == 0) //if client asking to register
-					{
-						//write the registration details into a file
-					}
-					else if (strcmp(buffer,"login") == 0)
+                    if (strcmp(buffer,"register") == 0) //for registration
                     {
-                    	//read from file and match
-
-                        /*temp = "Trying to login";
-                        send(sd, temp, strlen(temp), 0);*/
+                    	clientValue = read(sd, buffer, sizeof(buffer));
+                    	strcpy(uName, buffer);
+                    	clientValue = read(sd, buffer, sizeof(buffer));
+                    	strcpy(uId, buffer);
+                    	clientValue = read(sd, buffer, sizeof(buffer));
+                    	strcpy(password, buffer);
+                    	if (uIds.find(uId) == uIds.end()) //if new trader
+                    	{
+                    		uIds.insert(uId); //add to set
+                    		traderDetails[traderIndex++] = new Trader(uName, uId, password, -1); //create a new trader
+                    		temp = "Registration successful!";
+                    	}
+                    	else
+                    	{
+                    		temp = "Trader details already exists! Please Login!\nEnter an option (register/login/quit):\n";
+                    	}
+                        send(sd, temp, strlen(temp), 0);
+                    }
+                    else if (strcmp(buffer,"login") == 0)
+                    {
+                    	clientValue = read(sd, buffer, sizeof(buffer));
+                    	strcpy(uId, buffer);
+                    	clientValue = read(sd, buffer, sizeof(buffer));
+                    	strcpy(password, buffer);
+                    	if (uIds.find(uId) == uIds.end())
+                    	{
+                    		temp = "Trader does not exist! Please Register!";
+                    		send(sd, temp, strlen(temp), 0);
+                    	}
+                    	else
+                    	{
+                    		for (j = 0; j < traderIndex; ++j)
+                    		{
+                    			strcpy(storedId,traderDetails[j]->getUserId().c_str());
+                    			strcpy(storedPw,traderDetails[j]->getPassword().c_str());
+                    			if (strcmp(uId,storedId) == 0 && strcmp(password,storedPw) == 0)
+                    			{
+                    				strcpy(storedName,traderDetails[j]->getName().c_str());
+                    				traderDetails[j]->setNumber(sd);
+                    				clientTraderMap[i] = j; //store the trader's index to the map
+                    				traderDetails[j]->setLoginStatus(true);
+                    				getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
+			                        char tempMsg[1024] = "";
+			                        strcat(tempMsg, storedName);
+			                        strcat(tempMsg, " logged in at ");
+			                        strcat(tempMsg, inet_ntoa(address.sin_addr));
+			                        strcat(tempMsg, ", port: ");
+			                        char portNumberStr[10];
+			                        sprintf(portNumberStr,"%d",ntohs(address.sin_port));
+			                        strcat(tempMsg, portNumberStr);
+			                        strcat(tempMsg, "\n");
+			                        send(sd, tempMsg, strlen(tempMsg), 0);
+                    			}
+                    		}
+                    	}
                     }
                     else if (strcmp(buffer,"buy") == 0)
                     {
@@ -204,14 +218,36 @@ int main(int argc, char *argv[])
                     }
                     else if (strcmp(buffer,"logout") == 0)
                     {
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                    	{
+                    		traderDetails[clientTraderMap[sd]]->setLoginStatus(false);
+	        				char tempMsg[1024] = "";
+	        				strcat(tempMsg, traderDetails[clientTraderMap[sd]]->getName().c_str());
+	        				strcat(tempMsg, " logged out from ");
+	        				strcat(tempMsg, inet_ntoa(address.sin_addr));
+	                        strcat(tempMsg, ", port: ");
+	                        char portNumberStr[10];
+	                        sprintf(portNumberStr,"%d",ntohs(address.sin_port));
+	                        strcat(tempMsg, portNumberStr);
+	                        strcat(tempMsg, "\n");
+	                        send(sd, tempMsg, strlen(tempMsg), 0);
+	                    }
+	                    else
+	                    {
+	                    	temp = "You are not logged in!";
+	                    	send(sd, temp, strlen(temp), 0);
+	                    }
+                    }
+                    else if (strcmp(buffer,"close") == 0)
+                    {
                         temp = "Bye!";
                         send(sd, temp, strlen(temp), 0);
 
                         //print the host details
 						getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
-						cout << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
-						close(sd); //close the socket
-						allClients[i] = 0;
+						cout << "Client on " << inet_ntoa(address.sin_addr) << " logged out, port: " << ntohs(address.sin_port) << endl;
+						/*close(sd); //close the socket
+						allClients[i] = 0;*/
                     }
                     else
                     {
