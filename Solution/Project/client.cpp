@@ -42,40 +42,47 @@ int main(int argc, char *argv[])
 	serverValue = read(clientSocket, temp, 1024);
 	cout << temp << endl;
 
+	bool isClosed = false;
 	while (strcmp(buffer, "close") != 0)
 	{
 		cout << "New Traders are welcome to register/login here" << endl;
 		while (strcmp(buffer, "logout") != 0)
 		{
 			cin >> buffer;
+			if (strcmp(buffer,"close") == 0)
+			{
+				isClosed = true;
+				break;
+			}
 			//cout << buffer;
 			send(clientSocket, buffer, strlen(buffer), 0);
-
+			char uName[100] = {'\0'}, uId[50] = {'\0'}, password[50] = {'\0'};
 			if (strcmp(buffer,"register") == 0) //if want to register
 			{
 				cout << "Name: ";
-				cin >> buffer;
-				send(clientSocket, buffer, strlen(buffer), 0);
+				scanf("%s",uName);
+				send(clientSocket, uName, strlen(uName), 0);
 				cout << "User ID: ";
-				cin >> buffer;
-				send(clientSocket, buffer, strlen(buffer), 0);
+				scanf("%s",uId);
+				send(clientSocket, uId, strlen(uId), 0);
 				cout << "Password: ";
-				cin >> buffer;
-				send(clientSocket, buffer, strlen(buffer), 0);
+				scanf("%s",password);
+				send(clientSocket, password, strlen(password), 0);
 			}
 			else if (strcmp(buffer,"login") == 0) //if want to login
 			{
 				cout << "User ID: ";
-				cin >> buffer;
-				send(clientSocket, buffer, strlen(buffer), 0);
+				scanf("%s",uId);
+				send(clientSocket, uId, strlen(uId), 0);
 				cout << "Password: ";
-				cin >> buffer;
-				send(clientSocket, buffer, strlen(buffer), 0);
+				scanf("%s",password);
+				send(clientSocket, password, strlen(password), 0);
 			}
 			temp = (char *)malloc(1024*sizeof(char));
 			serverValue = read(clientSocket, temp, 1024);
 			cout << temp << endl;
 		}
+		if (isClosed) break;
 		cout << "Waiting for Traders... (Type close to close the client)" << endl;
 		cin >> buffer;
 	}

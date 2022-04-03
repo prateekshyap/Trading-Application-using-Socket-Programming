@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in address;
 	set<string> uIds;
 	
-	char buffer[1024], uName[100], uId[50], password[50], storedName[50], storedId[50], storedPw[50];
+	char buffer[1024];
 	const char * temp;
 
 	fd_set fds; //represents file descriptor sets for select function, is a bit array
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
 				{
 					//print the host details
 					getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
-					cout << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
+					cout << "Client on " << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
 					close(sd); //close the socket
 					allClients[i] = 0;
 				}
@@ -140,12 +140,11 @@ int main(int argc, char *argv[])
 					buffer[clientValue] = '\0';
                     if (strcmp(buffer,"register") == 0) //for registration
                     {
-                    	clientValue = read(sd, buffer, sizeof(buffer));
-                    	strcpy(uName, buffer);
-                    	clientValue = read(sd, buffer, sizeof(buffer));
-                    	strcpy(uId, buffer);
-                    	clientValue = read(sd, buffer, sizeof(buffer));
-                    	strcpy(password, buffer);
+                    	char uName[100] = {'\0'}, uId[50] = {'\0'}, password[50] = {'\0'};
+                    	clientValue = read(sd, uName, sizeof(uName));
+                    	clientValue = read(sd, uId, sizeof(uId));
+                    	clientValue = read(sd, password, sizeof(password));
+                    	//printf("'%s','%s','%s'\n",uName,uId,password);
                     	if (uIds.find(uId) == uIds.end()) //if new trader
                     	{
                     		uIds.insert(uId); //add to set
@@ -160,10 +159,9 @@ int main(int argc, char *argv[])
                     }
                     else if (strcmp(buffer,"login") == 0)
                     {
-                    	clientValue = read(sd, buffer, sizeof(buffer));
-                    	strcpy(uId, buffer);
-                    	clientValue = read(sd, buffer, sizeof(buffer));
-                    	strcpy(password, buffer);
+                    	char uId[50] = {'\0'}, password[50] = {'\0'};
+                    	clientValue = read(sd, uId, sizeof(uId));
+                    	clientValue = read(sd, password, sizeof(password));
                     	if (uIds.find(uId) == uIds.end())
                     	{
                     		temp = "Trader does not exist! Please Register!";
@@ -171,28 +169,38 @@ int main(int argc, char *argv[])
                     	}
                     	else
                     	{
+                    		char storedName[100] = {'\0'}, storedId[50] = {'\0'}, storedPw[50] = {'\0'};
+                    		bool isFound = false;
                     		for (j = 0; j < traderIndex; ++j)
                     		{
                     			strcpy(storedId,traderDetails[j]->getUserId().c_str());
                     			strcpy(storedPw,traderDetails[j]->getPassword().c_str());
+                    			//cout << storedId << " " << storedPw << endl;
                     			if (strcmp(uId,storedId) == 0 && strcmp(password,storedPw) == 0)
                     			{
+                    				if (traderDetails[j]->getLoginStatus())
+                    				{
+                    					isFound = true;
+                    					temp = "You can not login on multiple devices!";
+                    					send(sd, temp, strlen(temp), 0);
+                    					break;
+                    				}
                     				strcpy(storedName,traderDetails[j]->getName().c_str());
                     				traderDetails[j]->setNumber(sd);
-                    				clientTraderMap[i] = j; //store the trader's index to the map
+                    				clientTraderMap[sd] = j; //store the trader's index to the map
                     				traderDetails[j]->setLoginStatus(true);
                     				getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
 			                        char tempMsg[1024] = "";
-			                        strcat(tempMsg, storedName);
-			                        strcat(tempMsg, " logged in at ");
-			                        strcat(tempMsg, inet_ntoa(address.sin_addr));
-			                        strcat(tempMsg, ", port: ");
-			                        char portNumberStr[10];
-			                        sprintf(portNumberStr,"%d",ntohs(address.sin_port));
-			                        strcat(tempMsg, portNumberStr);
-			                        strcat(tempMsg, "\n");
+			                        sprintf(tempMsg,"%s logged in at %s, port: %d\n",storedName,inet_ntoa(address.sin_addr),ntohs(address.sin_port));
 			                        send(sd, tempMsg, strlen(tempMsg), 0);
+			                        isFound = true;
+			                        break;
                     			}
+                    		}
+                    		if (!isFound)
+                    		{
+                    			temp = "Wrong Credentials! Try again!";
+                    			send(sd, temp, strlen(temp), 0);
                     		}
                     	}
                     }
@@ -218,18 +226,12 @@ int main(int argc, char *argv[])
                     }
                     else if (strcmp(buffer,"logout") == 0)
                     {
+                    	getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
                     	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
                     	{
                     		traderDetails[clientTraderMap[sd]]->setLoginStatus(false);
 	        				char tempMsg[1024] = "";
-	        				strcat(tempMsg, traderDetails[clientTraderMap[sd]]->getName().c_str());
-	        				strcat(tempMsg, " logged out from ");
-	        				strcat(tempMsg, inet_ntoa(address.sin_addr));
-	                        strcat(tempMsg, ", port: ");
-	                        char portNumberStr[10];
-	                        sprintf(portNumberStr,"%d",ntohs(address.sin_port));
-	                        strcat(tempMsg, portNumberStr);
-	                        strcat(tempMsg, "\n");
+	        				sprintf(tempMsg,"%s logged out from %s, port: %d\n",traderDetails[clientTraderMap[sd]]->getName().c_str(),inet_ntoa(address.sin_addr),ntohs(address.sin_port));
 	                        send(sd, tempMsg, strlen(tempMsg), 0);
 	                    }
 	                    else
@@ -240,14 +242,14 @@ int main(int argc, char *argv[])
                     }
                     else if (strcmp(buffer,"close") == 0)
                     {
-                        temp = "Bye!";
+                        temp = "Thanks for using the Application!";
                         send(sd, temp, strlen(temp), 0);
 
                         //print the host details
 						getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
-						cout << "Client on " << inet_ntoa(address.sin_addr) << " logged out, port: " << ntohs(address.sin_port) << endl;
-						/*close(sd); //close the socket
-						allClients[i] = 0;*/
+						cout << "Client on " << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
+						close(sd); //close the socket
+						allClients[i] = 0;
                     }
                     else
                     {
