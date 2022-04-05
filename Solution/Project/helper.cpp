@@ -15,7 +15,7 @@ string item_names[] = {
 	"BAHT",
 };
 
-string tader_names[] = {
+string trader_names[] = {
 	"n1",
 	"n2",
 	"n3",

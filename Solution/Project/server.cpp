@@ -18,7 +18,7 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-	int noOfTraders = 5, maxClients = 5;
+	int noOfTraders = 5, maxClients = 5, noOfItems = 10;
 	int PORT = atoi(argv[1]);
 	int option = TRUE;
 	int masterSocket, addressLength, newSocket, activity, i, j, clientValue, sd, maxSd, traderIndex = 0;
@@ -27,9 +27,13 @@ int main(int argc, char *argv[])
 	Trader ** traderDetails = new Trader*[noOfTraders];
 	struct sockaddr_in address;
 	set<string> uIds;
+	Item ** items = new Item*[noOfItems];
+
+	for (i = 0; i < noOfItems; ++i)
+		items[i] = new Item();
 	
 	char buffer[1024];
-	const char * temp;
+	//const char * temp;
 
 	fd_set fds; //represents file descriptor sets for select function, is a bit array
 
@@ -137,6 +141,7 @@ int main(int argc, char *argv[])
 				}
 				else //otherwise reading from client
 				{
+					char temp[1024] = {'\0'};
 					buffer[clientValue] = '\0';
                     if (strcmp(buffer,"register") == 0) //for registration
                     {
@@ -149,11 +154,11 @@ int main(int argc, char *argv[])
                     	{
                     		uIds.insert(uId); //add to set
                     		traderDetails[traderIndex++] = new Trader(uName, uId, password, -1); //create a new trader
-                    		temp = "Registration successful!";
+                    		sprintf(temp,"%s","Registration successful!");
                     	}
                     	else
                     	{
-                    		temp = "Trader details already exists! Please Login!\nEnter an option (register/login/quit):\n";
+                    		sprintf(temp,"%s","Trader details already exists! Please Login!\nEnter an option (register/login/quit):\n");
                     	}
                         send(sd, temp, strlen(temp), 0);
                     }
@@ -164,7 +169,7 @@ int main(int argc, char *argv[])
                     	clientValue = read(sd, password, sizeof(password));
                     	if (uIds.find(uId) == uIds.end())
                     	{
-                    		temp = "Trader does not exist! Please Register!";
+                    		sprintf(temp,"%s","Trader does not exist! Please Register!");
                     		send(sd, temp, strlen(temp), 0);
                     	}
                     	else
@@ -181,7 +186,7 @@ int main(int argc, char *argv[])
                     				if (traderDetails[j]->getLoginStatus())
                     				{
                     					isFound = true;
-                    					temp = "You can not login on multiple devices!";
+                    					sprintf(temp,"%s","You can not login on multiple devices!");
                     					send(sd, temp, strlen(temp), 0);
                     					break;
                     				}
@@ -199,30 +204,76 @@ int main(int argc, char *argv[])
                     		}
                     		if (!isFound)
                     		{
-                    			temp = "Wrong Credentials! Try again!";
+                    			sprintf(temp,"%s","Wrong Credentials! Try again!");
                     			send(sd, temp, strlen(temp), 0);
                     		}
                     	}
                     }
                     else if (strcmp(buffer,"buy") == 0)
                     {
-                        temp = "Sending Buy request";
-                        send(sd, temp, strlen(temp), 0);
+                    	char itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'};
+                    	getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                    	{
+                    		send(sd, itemList, strlen(itemList), 0);
+                    		clientValue = read(sd, itemNumber, sizeof(itemNumber));
+                    		clientValue = read(sd, itemPrice, sizeof(itemPrice));
+                    		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to buy Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << endl;
+                    		sprintf(temp,"%s","Buy request received successfully");
+                        	send(sd, temp, strlen(temp), 0);
+                    	}
+                    	else
+                    	{
+							sprintf(temp,"%s","Please Login!");
+                        	send(sd, temp, strlen(temp), 0);
+                    	}
                     }
                     else if (strcmp(buffer,"sell") == 0)
                     {
-                        temp = "Sending Sell request";
-                        send(sd, temp, strlen(temp), 0);
+                    	char itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'};
+                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                    	{
+                    		send(sd, itemList, strlen(itemList), 0);
+                    		clientValue = read(sd, itemNumber, sizeof(itemNumber));
+                    		clientValue = read(sd, itemPrice, sizeof(itemPrice));
+                    		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to sell Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << endl;
+                    		sprintf(temp,"%s","Sell request received successfully");
+                        	send(sd, temp, strlen(temp), 0);
+                    	}
+                    	else
+                    	{
+							sprintf(temp,"%s","Please Login!");
+                        	send(sd, temp, strlen(temp), 0);
+                    	}
                     }
-                    else if (strcmp(buffer,"order") == 0)
+                    else if (strcmp(buffer,"order status") == 0)
                     {
-                        temp = "Asking Order Status";
-                        send(sd, temp, strlen(temp), 0);
+                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                    	{
+                    		sprintf(temp,"%s","Sending order status");
+                    		send(sd, temp, strlen(temp), 0);
+                    	}
+                    	else
+                    	{
+							sprintf(temp,"%s","Please Login!");
+                        	send(sd, temp, strlen(temp), 0);
+                    	}
                     }
-                    else if (strcmp(buffer,"trade") == 0)
+                    else if (strcmp(buffer,"trade status") == 0)
                     {
-                        temp = "Asking Trade Status";
-                        send(sd, temp, strlen(temp), 0);
+                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                    	{
+                    		sprintf(temp,"%s","Sending trade status");
+                    		send(sd, temp, strlen(temp), 0);
+                    	}
+                    	else
+                    	{
+							sprintf(temp,"%s","Please Login!");
+                        	send(sd, temp, strlen(temp), 0);
+                    	}
                     }
                     else if (strcmp(buffer,"logout") == 0)
                     {
@@ -230,19 +281,18 @@ int main(int argc, char *argv[])
                     	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
                     	{
                     		traderDetails[clientTraderMap[sd]]->setLoginStatus(false);
-	        				char tempMsg[1024] = "";
-	        				sprintf(tempMsg,"%s logged out from %s, port: %d\n",traderDetails[clientTraderMap[sd]]->getName().c_str(),inet_ntoa(address.sin_addr),ntohs(address.sin_port));
-	                        send(sd, tempMsg, strlen(tempMsg), 0);
+	        				sprintf(temp,"%s logged out from %s, port: %d\n",traderDetails[clientTraderMap[sd]]->getName().c_str(),inet_ntoa(address.sin_addr),ntohs(address.sin_port));
+	                        send(sd, temp, strlen(temp), 0);
 	                    }
 	                    else
 	                    {
-	                    	temp = "You are not logged in!";
+	                    	sprintf(temp,"%s","You are not logged in!");
 	                    	send(sd, temp, strlen(temp), 0);
 	                    }
                     }
                     else if (strcmp(buffer,"close") == 0)
                     {
-                        temp = "Thanks for using the Application!";
+                        sprintf(temp,"%s","Thanks for using the Application!");
                         send(sd, temp, strlen(temp), 0);
 
                         //print the host details
@@ -253,7 +303,7 @@ int main(int argc, char *argv[])
                     }
                     else
                     {
-                        temp = "What are you saying?";
+                       	sprintf(temp,"%s","What are you saying?");
                         send(sd, temp, strlen(temp), 0);
                     }
 				}
