@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 	int noOfTraders = 5, maxClients = 5, noOfItems = 10;
 	int PORT = atoi(argv[1]);
 	int option = TRUE;
-	int masterSocket, addressLength, newSocket, activity, i, j, clientValue, sd, maxSd, traderIndex = 0;
+	int masterSocket, addressLength, newSocket, activity, i, j, k, clientValue, sd, maxSd, traderIndex = 0;
 	int * allClients = new int[maxClients];
 	int * clientTraderMap = new int[maxClients];
 	Trader ** traderDetails = new Trader*[noOfTraders];
@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 	Item ** items = new Item*[noOfItems];
 
 	for (i = 0; i < noOfItems; ++i)
-		items[i] = new Item();
+		items[i] = new Item(i);
 	
 	char buffer[1024];
 	//const char * temp;
@@ -211,16 +211,19 @@ int main(int argc, char *argv[])
                     }
                     else if (strcmp(buffer,"buy") == 0)
                     {
-                    	char itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'};
+                    	char itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'}, itemQuantity[8] = {'\0'};
                     	getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
                     	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
                     	{
                     		send(sd, itemList, strlen(itemList), 0);
                     		clientValue = read(sd, itemNumber, sizeof(itemNumber));
                     		clientValue = read(sd, itemPrice, sizeof(itemPrice));
-                    		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to buy Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << endl;
-                    		sprintf(temp,"%s","Buy request received successfully");
-                        	send(sd, temp, strlen(temp), 0);
+                    		clientValue = read(sd, itemQuantity, sizeof(itemQuantity));
+                    		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to buy Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << " and net quantity " << itemQuantity << endl;
+                    		Order * newOrder = new Order(traderDetails[clientTraderMap[sd]],atoi(itemNumber)-1,atoi(itemQuantity),atoi(itemPrice),0);
+                    		items[atoi(itemNumber)-1]->insertItem(newOrder,0);
+                    		/*sprintf(temp,"%s","Buy request received successfully");
+                        	send(sd, temp, strlen(temp), 0);*/
                     	}
                     	else
                     	{
@@ -230,16 +233,19 @@ int main(int argc, char *argv[])
                     }
                     else if (strcmp(buffer,"sell") == 0)
                     {
-                    	char itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'};
+                    	char itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'}, itemQuantity[8] = {'\0'};
                         getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
                     	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
                     	{
                     		send(sd, itemList, strlen(itemList), 0);
                     		clientValue = read(sd, itemNumber, sizeof(itemNumber));
                     		clientValue = read(sd, itemPrice, sizeof(itemPrice));
-                    		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to sell Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << endl;
-                    		sprintf(temp,"%s","Sell request received successfully");
-                        	send(sd, temp, strlen(temp), 0);
+                    		clientValue = read(sd, itemQuantity, sizeof(itemQuantity));
+                    		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to sell Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << " and net quantity " << itemQuantity << endl;
+                    		Order * newOrder = new Order(traderDetails[clientTraderMap[sd]],atoi(itemNumber)-1,atoi(itemQuantity),atoi(itemPrice),1);
+                    		items[atoi(itemNumber)-1]->insertItem(newOrder,1);
+                    		/*sprintf(temp,"%s","Sell request received successfully");
+                        	send(sd, temp, strlen(temp), 0);*/
                     	}
                     	else
                     	{
@@ -247,13 +253,34 @@ int main(int argc, char *argv[])
                         	send(sd, temp, strlen(temp), 0);
                     	}
                     }
-                    else if (strcmp(buffer,"order status") == 0)
+                    else if (strcmp(buffer,"order") == 0)
                     {
-                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
+                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
                     	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
                     	{
-                    		sprintf(temp,"%s","Sending order status");
+                    		sprintf(temp,"%d",noOfItems);
                     		send(sd, temp, strlen(temp), 0);
+                    		char orderStatus[10240] = {'\0'};
+                    		for (j = 0; j < noOfItems; ++j)
+                    		{
+                    			char itemDetails[1024] = {'\0'};
+                    			Order ** buyOrders = items[j]->getBuyBook();
+                    			int buyOrdersSize = items[j]->getBuyBookSize();
+								Order ** sellOrders = items[j]->getSellBook();
+								int sellOrdersSize = items[j]->getSellBookSize();
+                    			if (buyOrdersSize > 0 && sellOrdersSize > 0)
+                    				sprintf(itemDetails,"---------------------------------\nItem: %s\n---Buy Order---\nQuantity: %d\nPrice: %d\n---Sell Order---\nQuantity: %d\nPrice: %d\n",item_names[j],buyOrders[0]->get_quantity(),buyOrders[0]->get_price(),sellOrders[0]->get_quantity(),sellOrders[0]->getPrice());
+                    			else if (buyOrdersSize > 0)
+                    				sprintf(itemDetails,"---------------------------------\nItem: %s\n---Buy Order---\nQuantity: %d\nPrice: %d\n---Sell Order---\nQuantity: NIL\nPrice: NIL\n",item_names[j],buyOrders[0]->get_quantity(),buyOrders[0]->get_price());
+                    			else if (sellOrdersSize > 0)
+                    				sprintf(itemDetails,"---------------------------------\nItem: %s\n---Buy Order---\nQuantity: NIL\nPrice: NIL\n---Sell Order---\nQuantity: %d\nPrice: %d\n",item_names[j],sellOrders[0]->get_quantity(),sellOrders[0]->getPrice());
+                    			else
+                    				sprintf(itemDetails,"---------------------------------\nItem: %s\n---Buy Order---\nQuantity: NIL\nPrice: NIL\n---Sell Order---\nQuantity: NIL\nPrice: NIL\n",item_names[j]);
+                    			strcat(orderStatus,itemDetails);
+                    		}
+                    		send(sd, orderStatus, strlen(orderStatus), 0);
+                    		/*sprintf(temp,"%s","Order Status sent successfully");
+                    		send(sd, temp, strlen(temp), 0);*/
                     	}
                     	else
                     	{
@@ -261,7 +288,7 @@ int main(int argc, char *argv[])
                         	send(sd, temp, strlen(temp), 0);
                     	}
                     }
-                    else if (strcmp(buffer,"trade status") == 0)
+                    else if (strcmp(buffer,"trade") == 0)
                     {
                         getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
                     	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
@@ -300,6 +327,10 @@ int main(int argc, char *argv[])
 						cout << "Client on " << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
 						close(sd); //close the socket
 						allClients[i] = 0;
+
+						/*//dummy print part to be removed
+						for (j = 0; j < noOfItems; ++j)
+							items[j]->printItemQueues();*/
                     }
                     else
                     {

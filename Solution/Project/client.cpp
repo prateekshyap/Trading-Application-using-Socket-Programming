@@ -1,6 +1,6 @@
 using namespace std;
 
-#include<iostream>
+#include <iostream>
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
 	const char * serverIP = argv[1];
 	int PORT = atoi(argv[2]);
-	int clientSocket = 0, serverValue;
+	int clientSocket = 0, serverValue, i;
 	struct sockaddr_in serverAddress;
 	char buffer[1024] = {0};
 	char * tempText;
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 			}
 			//cout << buffer;
 			send(clientSocket, buffer, strlen(buffer), 0);
-			char uName[100] = {'\0'}, uId[50] = {'\0'}, password[50] = {'\0'}, itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'}, temp[1024] = {'\0'};
+			char uName[100] = {'\0'}, uId[50] = {'\0'}, password[50] = {'\0'}, itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'}, itemQuantity[8] = {'\0'}, temp[1024] = {'\0'};
 			if (strcmp(buffer,"register") == 0) //if want to register
 			{
 				cout << "Name: ";
@@ -68,6 +68,9 @@ int main(int argc, char *argv[])
 				cout << "Password: ";
 				scanf("%s",password);
 				send(clientSocket, password, strlen(password), 0);
+				tempText = (char *)malloc(1024*sizeof(char));
+				serverValue = read(clientSocket, tempText, 1024);
+				cout << tempText << endl;
 			}
 			else if (strcmp(buffer,"login") == 0) //if want to login
 			{
@@ -77,6 +80,9 @@ int main(int argc, char *argv[])
 				cout << "Password: ";
 				scanf("%s",password);
 				send(clientSocket, password, strlen(password), 0);
+				tempText = (char *)malloc(1024*sizeof(char));
+				serverValue = read(clientSocket, tempText, 1024);
+				cout << tempText << endl;
 			}
 			else if (strcmp(buffer,"buy") == 0) //if want to buy
 			{
@@ -90,6 +96,9 @@ int main(int argc, char *argv[])
 					cout << "Enter price: " << endl;
 					scanf("%s",itemPrice);
 					send(clientSocket, itemPrice, strlen(itemPrice), 0);
+					cout << "Enter quantity: " << endl;
+					scanf("%s",itemQuantity);
+					send(clientSocket, itemQuantity, strlen(itemQuantity), 0);
 				}
 				//send(clientSocket, "0", strlen("0"), 0);
 			}
@@ -105,25 +114,34 @@ int main(int argc, char *argv[])
 					cout << "Enter price: " << endl;
 					scanf("%s",itemPrice);
 					send(clientSocket, itemPrice, strlen(itemPrice), 0);
+					cout << "Enter quantity: " << endl;
+					scanf("%s",itemQuantity);
+					send(clientSocket, itemQuantity, strlen(itemQuantity), 0);
 				}
 				//send(clientSocket, "1", strlen("1"), 0);
 			}
-			else if (strcmp(buffer,"order status") == 0) //if want to order
+			else if (strcmp(buffer,"order") == 0) //if want to see order status
+			{
+				read(clientSocket, temp, 1024);
+				cout << temp << endl;
+				if (strcmp(temp,"Please Login!") != 0)
+				{
+					char * itemDetails;
+					read(clientSocket, itemDetails, 1024);
+					cout << itemDetails << endl;
+				}
+			}
+			else if (strcmp(buffer,"trade") == 0) //if want to see trade status
 			{
 				read(clientSocket, temp, 1024);
 				cout << temp << endl;
 			}
-			else if (strcmp(buffer,"trade status") == 0) //if want to trade
-			{
-				read(clientSocket, temp, 1024);
-				cout << temp << endl;
-			}
-			if (strcmp(temp,"Please Login!") != 0)
+			/*if (strcmp(temp,"Please Login!") != 0)
 			{
 				tempText = (char *)malloc(1024*sizeof(char));
 				serverValue = read(clientSocket, tempText, 1024);
 				cout << tempText << endl;
-			}
+			}*/
 		}
 		if (isClosed) break;
 		cout << "Waiting for Traders... (Type close to close the client)" << endl;
