@@ -11,6 +11,11 @@ using namespace std;
 #include <netinet/in.h>
 #include <sys/time.h>
 #include <bits/stdc++.h>
+#ifdef _WIN32
+#include <Windows.h>
+#else
+#include <unistd.h>
+#endif
 #include "datastructures.h"
 
 #define TRUE 1
@@ -88,6 +93,24 @@ int main(int argc, char *argv[])
 	addressLength = sizeof(address);
 	cout << "Waiting for Clients ..." << endl << endl;
 
+
+	//read existing registration details from file and insert to map and create the traders as well
+	ifstream inputFile;
+	inputFile.open("traders.txt");
+	int noOfT = 5;
+	while(!inputFile.eof())
+	{
+		char uName[50] = {'\0'}, uId[50] = {'\0'}, uPass[50] = {'\0'};
+		inputFile >> uName >> uId >> uPass;
+		uIds.insert(uId); //add to set
+   		traderDetails[traderIndex++] = new Trader(uName, uId, uPass, -1); //create a new trader
+		
+		--noOfT;
+		if (noOfT == 0) break;
+	}
+	inputFile.close();
+
+
 	while (TRUE)
 	{
 		FD_ZERO(&fds); //initializes the file descriptor set fd_set to have zero bits for all file descriptors
@@ -145,6 +168,13 @@ int main(int argc, char *argv[])
 					buffer[clientValue] = '\0';
                     if (strcmp(buffer,"register") == 0) //for registration
                     {
+                    	if (traderIndex == noOfTraders)
+                    	{
+                    		cout << traderIndex << "," << noOfTraders << endl;
+                    		sprintf(temp,"%s","No more registrations possible");
+                    		send(sd, temp, strlen(temp), 0);
+                    		continue;
+                    	}
                     	char uName[100] = {'\0'}, uId[50] = {'\0'}, password[50] = {'\0'};
                     	clientValue = read(sd, uName, sizeof(uName));
                     	clientValue = read(sd, uId, sizeof(uId));
@@ -152,6 +182,11 @@ int main(int argc, char *argv[])
                     	//printf("'%s','%s','%s'\n",uName,uId,password);
                     	if (uIds.find(uId) == uIds.end()) //if new trader
                     	{
+                    		ofstream outputFile;
+                    		outputFile.open("traders.txt",std::ios_base::app);
+                    		outputFile << uName << " " << uId << " " << password << endl;
+                    		outputFile.close();
+
                     		uIds.insert(uId); //add to set
                     		traderDetails[traderIndex++] = new Trader(uName, uId, password, -1); //create a new trader
                     		sprintf(temp,"%s","Registration successful!");
@@ -174,10 +209,10 @@ int main(int argc, char *argv[])
                     	}
                     	else
                     	{
-                    		char storedName[100] = {'\0'}, storedId[50] = {'\0'}, storedPw[50] = {'\0'};
                     		bool isFound = false;
                     		for (j = 0; j < traderIndex; ++j)
                     		{
+                    			char storedName[100] = {'\0'}, storedId[50] = {'\0'}, storedPw[50] = {'\0'};
                     			strcpy(storedId,traderDetails[j]->getUserId().c_str());
                     			strcpy(storedPw,traderDetails[j]->getPassword().c_str());
                     			//cout << storedId << " " << storedPw << endl;
@@ -221,7 +256,12 @@ int main(int argc, char *argv[])
                     		clientValue = read(sd, itemQuantity, sizeof(itemQuantity));
                     		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to buy Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << " and net quantity " << itemQuantity << endl;
                     		Order * newOrder = new Order(traderDetails[clientTraderMap[sd]],atoi(itemNumber)-1,atoi(itemQuantity),atoi(itemPrice),0);
+                    		/*cout << "Before Trade-" << endl;
+                    		items[atoi(itemNumber)-1]->printItemQueues();*/
                     		items[atoi(itemNumber)-1]->insertItem(newOrder,0);
+                    		traderDetails[clientTraderMap[sd]]->add_order(newOrder);
+                    		//cout << "After Trade-" << endl;
+                    		//items[atoi(itemNumber)-1]->printItemQueues();
                     		/*sprintf(temp,"%s","Buy request received successfully");
                         	send(sd, temp, strlen(temp), 0);*/
                     	}
@@ -243,7 +283,12 @@ int main(int argc, char *argv[])
                     		clientValue = read(sd, itemQuantity, sizeof(itemQuantity));
                     		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to sell Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << " and net quantity " << itemQuantity << endl;
                     		Order * newOrder = new Order(traderDetails[clientTraderMap[sd]],atoi(itemNumber)-1,atoi(itemQuantity),atoi(itemPrice),1);
+                    		/*cout << "Before Trade-" << endl;
+                    		items[atoi(itemNumber)-1]->printItemQueues();*/
                     		items[atoi(itemNumber)-1]->insertItem(newOrder,1);
+                    		traderDetails[clientTraderMap[sd]]->add_order(newOrder);
+                    		//cout << "After Trade-" << endl;
+                    		//items[atoi(itemNumber)-1]->printItemQueues();
                     		/*sprintf(temp,"%s","Sell request received successfully");
                         	send(sd, temp, strlen(temp), 0);*/
                     	}
@@ -260,27 +305,35 @@ int main(int argc, char *argv[])
                     	{
                     		sprintf(temp,"%d",noOfItems);
                     		send(sd, temp, strlen(temp), 0);
-                    		char orderStatus[10240] = {'\0'};
+                    		sleep(1);
                     		for (j = 0; j < noOfItems; ++j)
                     		{
-                    			char itemDetails[1024] = {'\0'};
-                    			Order ** buyOrders = items[j]->getBuyBook();
-                    			int buyOrdersSize = items[j]->getBuyBookSize();
-								Order ** sellOrders = items[j]->getSellBook();
-								int sellOrdersSize = items[j]->getSellBookSize();
-                    			if (buyOrdersSize > 0 && sellOrdersSize > 0)
-                    				sprintf(itemDetails,"---------------------------------\nItem: %s\n---Buy Order---\nQuantity: %d\nPrice: %d\n---Sell Order---\nQuantity: %d\nPrice: %d\n",item_names[j],buyOrders[0]->get_quantity(),buyOrders[0]->get_price(),sellOrders[0]->get_quantity(),sellOrders[0]->getPrice());
-                    			else if (buyOrdersSize > 0)
-                    				sprintf(itemDetails,"---------------------------------\nItem: %s\n---Buy Order---\nQuantity: %d\nPrice: %d\n---Sell Order---\nQuantity: NIL\nPrice: NIL\n",item_names[j],buyOrders[0]->get_quantity(),buyOrders[0]->get_price());
-                    			else if (sellOrdersSize > 0)
-                    				sprintf(itemDetails,"---------------------------------\nItem: %s\n---Buy Order---\nQuantity: NIL\nPrice: NIL\n---Sell Order---\nQuantity: %d\nPrice: %d\n",item_names[j],sellOrders[0]->get_quantity(),sellOrders[0]->getPrice());
-                    			else
-                    				sprintf(itemDetails,"---------------------------------\nItem: %s\n---Buy Order---\nQuantity: NIL\nPrice: NIL\n---Sell Order---\nQuantity: NIL\nPrice: NIL\n",item_names[j]);
-                    			strcat(orderStatus,itemDetails);
+                    			char orderStatus[10240] = {'\0'};
+                    			vector<Order *> buyOrders = items[j]->getBuyBook();
+                    			vector<Order *> sellOrders = items[j]->getSellBook();
+                    			sprintf(orderStatus,"%s\n",items[j]->getItemName());
+                    			for (k = 0; k < buyOrders.size() || k < sellOrders.size(); ++k)
+                    			{
+                    				//cout << k << " " << buyOrders.size() << " " << sellOrders.size() << endl;
+                    				char singleBuyOrder[1024] = {'\0'}, singleSellOrder[1024] = {'\0'};
+                    				if(k < buyOrders.size()){
+                    					sprintf(singleBuyOrder,"%d(%d)\t",buyOrders[k]->get_price(),buyOrders[k]->get_remaining_quantity());
+                    				}
+									else{
+										sprintf(singleBuyOrder,"%s","\t");
+									}
+									if(k < sellOrders.size()){
+										sprintf(singleSellOrder,"%d(%d)\n",sellOrders[k]->get_price(),sellOrders[k]->get_remaining_quantity());
+                    				}
+                    				else
+                    					sprintf(singleSellOrder,"%s","\n");
+                    				strcat(orderStatus,singleBuyOrder);
+                    				strcat(orderStatus,singleSellOrder);
+                    			}
+                    			//cout << orderStatus << endl;
+                    			send(sd, orderStatus, strlen(orderStatus), 0);
+                    			sleep(1);
                     		}
-                    		send(sd, orderStatus, strlen(orderStatus), 0);
-                    		/*sprintf(temp,"%s","Order Status sent successfully");
-                    		send(sd, temp, strlen(temp), 0);*/
                     	}
                     	else
                     	{
@@ -293,8 +346,49 @@ int main(int argc, char *argv[])
                         getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
                     	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
                     	{
-                    		sprintf(temp,"%s","Sending trade status");
+                    		vector<Order *> all_trades = traderDetails[clientTraderMap[sd]]->getAllTrades();
+							char orderStatus[10240] = {'\0'};
+							/*strcat(orderStatus,"////////////////////////////////////////////////////////////////////////////////\n");
+							strcat(orderStatus,"TRADE BOOK FOR ");
+							strcat(orderStatus,traderDetails[clientTraderMap[sd]]->getName().c_str());
+							strcat(orderStatus,"\n********************************************************************************\n");
+							strcat(orderStatus,"ITEM\tQUANTITY\tPRICE\tTYPE\tSTATUS\t\tCOUNTER-PARTY\n");
+							strcat(orderStatus,"********************************************************************************\n");
+							*/
+							sprintf(temp,"%ld",all_trades.size());
                     		send(sd, temp, strlen(temp), 0);
+                    		sleep(1);
+                    		send(sd, traderDetails[clientTraderMap[sd]]->getName().c_str(), strlen(traderDetails[clientTraderMap[sd]]->getName().c_str()), 0);
+                    		sleep(1);
+							for(int i=0; i<all_trades.size(); i++)
+							{
+								char tradeDetails[1024] = {'\0'};
+								sprintf(tradeDetails,"%s\t%d\t\t%d\t%s\t%s\t",item_names[all_trades[i]->get_item_index()],all_trades[i]->get_remaining_quantity(),all_trades[i]->get_price(),all_trades[i]->get_type() == 0 ? "BUY" : "SELL",all_trades[i]->get_status() == 'Q' ? "NOT MATCHED" : "MATCHED\t");
+								/*strcat(tradeDetails,item_names[all_trades[i]->get_item_index()]);
+								strcat(tradeDetails,"\t");
+								strcat(tradeDetails,all_trades[i]->get_quantity());
+								strcat(tradeDetails,"\t\t");
+								strcat(tradeDetails,all_trades[i]->get_price());
+								strcat(tradeDetails,"\t");
+								strcat(tradeDetails,all_trades[i]->get_type() == 0 ? "BUY" : "SELL");
+								strcat(tradeDetails,"\t");
+								strcat(tradeDetails,all_trades[i]->get_status() == 'Q' ? "NOT MATCHED" : "MATCHED\t");
+								strcat(tradeDetails,"\t");*/
+								//cout << item_names[all_trades[i]->get_item_index()] << "\t" << all_trades[i]->get_quantity() << "\t\t" << all_trades[i]->get_price() << "\t" << (all_trades[i]->get_type() == 0 ? "BUY" : "SELL") << "\t" << (all_trades[i]->get_status() == 'Q' ? "NOT MATCHED" : "MATCHED\t")<< "\t";
+								if (all_trades[i]->get_status() == 'F')
+									strcat(tradeDetails,all_trades[i]->get_match()->getName().c_str());
+									//cout << all_trades[i]->get_match()->getName();  
+								//strcat(tradeDetails,"\n");
+								send(sd, tradeDetails, strlen(tradeDetails), 0);
+								sleep(1);
+								//strcat(orderStatus,tradeDetails);
+								//cout << endl;
+							}
+							//strcat(orderStatus,"////////////////////////////////////////////////////////////////////////////////\n");
+							//cout << "////////////////////////////////////////////////////////////////////////////////" << endl;
+
+                    		//sprintf(temp,"%s","Sending trade status");
+                    		//send(sd, orderStatus, strlen(orderStatus), 0);
                     	}
                     	else
                     	{
@@ -332,11 +426,11 @@ int main(int argc, char *argv[])
 						for (j = 0; j < noOfItems; ++j)
 							items[j]->printItemQueues();*/
                     }
-                    else
+                    /*else
                     {
                        	sprintf(temp,"%s","What are you saying?");
                         send(sd, temp, strlen(temp), 0);
-                    }
+                    }*/
 				}
 			}
 		}

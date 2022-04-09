@@ -2,6 +2,7 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+int order_count = 0;
 const char * item_names[] = {
 	"GOLD",
 	"SILVER",
@@ -16,7 +17,7 @@ const char * item_names[] = {
 };
 
 char itemList[] = "1. GOLD\n2. SILVER\n3. DOLLAR\n4. EURO\n5. YEN\n6. LIRA\n7. RUBLE\n8. PESO\n9. WON\n10. BAHT\n";
-
+class Order;
 class Trader
 {
 private:
@@ -24,7 +25,7 @@ private:
 	string name, password, userName;
 	bool isLoggedIn;
 	int uniqueNumber;
-
+	vector<Order*> all_trades;
 public:
 	Trader(){}
 	Trader(string un, string uid, string pw, int num)
@@ -44,7 +45,13 @@ public:
 	string getName() { return name; }
 	string getUserId() { return userName; }
 	string getPassword() { return password; }
+	vector<Order *> getAllTrades() { return all_trades; }
 	//queue of orders with status
+
+	// add new trade
+	void add_order(Order *o){
+		all_trades.push_back(o);
+	}
 };
 
 class Order
@@ -53,27 +60,49 @@ private:
 	Trader *trader, *match;
 	//Item *item;
 	int itemIndex;
-	int orderId, quantity, price;
+	int orderId, quantity, price, remaining_quantity;
 	int type;
-	//char status;
+	char status;// status: F = FILLED, Q = In queue
 
 public:
 	Order(Trader * t, int itIn, int q, int p, int orderType)
 	{
 		trader = t;
 		itemIndex = itIn;
+		orderId = ++order_count;
 		quantity = q;
 		price = p;
 		type = orderType;
+		remaining_quantity = quantity;
+		status = 'Q';
 	}
 	int getPrice();
-	int get_item(){return itemIndex;}
+	void printOrderDetails();
+
+
+	void set_trader(Trader *t){trader = t;}
+	void set_match(Trader *m){match = m;}
+	//void set_item(Item *i){item = i;}
+	void set_orderId(int id){orderId = id;}
+	void set_quantity(int q){quantity = q;}
+	void set_price(int p){price = p;}
+	void set_type(char c){type = c;}
+	void set_remaining_quantity(int q){remaining_quantity = q;}
+	void set_status(char c){status = c;}
+
+	char get_status(){return status;}
+	Trader* get_trader(){return trader;}
+	Trader* get_match(){return match;}
+	int get_orderid(){return orderId;}
+	//Item* get_item(){return item;}
+	int get_item_index() {return itemIndex;}
 	int get_quantity(){return quantity;}
 	int get_price(){return price;}
-	void printOrderDetails();
+	char get_type(){return type;}
+	int get_remaining_quantity(){return remaining_quantity;}
 };
 
-class Heap
+/*class Heap
 {
 private:
 	Order ** orders;
@@ -98,14 +127,15 @@ public:
 	void decreaseKey(int, int);
 	Order ** getOrderBook();
 	int getHeapSize();
-};
+};*/
 
 class Item
 {
 private:
 	int itemId, price;
-	string itemName;
-	Heap * buyBook, * sellBook;
+	const char * itemName;
+	//Heap * buyBook, * sellBook;
+	vector<Order*> buy_book, sell_book;
 
 public:
 	Item(int i)
@@ -113,26 +143,27 @@ public:
 		itemId = i;
 		price = 0;
 		itemName = item_names[i];
-		buyBook = new Heap(1);
-		sellBook = new Heap(0);
+		//buyBook = new Heap(1);
+		//sellBook = new Heap(0);
 	}
 	void insertItem(Order *,int);
-	void printItemQueues();
-	Order ** getBuyBook();
-	Order ** getSellBook();
+	char * printItemQueues();
+	vector<Order *> getBuyBook();
+	vector<Order *> getSellBook();
 	int getBuyBookSize();
 	int getSellBookSize();
+	const char * getItemName() { return itemName; }
+
+	void add_buy_order(Order *);
+	void add_sell_order(Order *);
+	void trade_orders();
 };
-
-
-
-
 
 
 /////////////////////////////////////////////////////////////////////////////////////
 // HEAP Functions
 /////////////////////////////////////////////////////////////////////////////////////
-int Heap :: left(int root) { return (2*root)+1; }
+/*int Heap :: left(int root) { return (2*root)+1; }
 int Heap :: right(int root) { return (2*root)+2; }
 int Heap :: parent(int root) { return (root-1)/2; }
 
@@ -214,7 +245,7 @@ Order ** Heap :: getOrderBook()
 int Heap :: getHeapSize()
 {
 	return heapSize;
-}
+}*/
 
 
 
@@ -256,54 +287,167 @@ void Order :: printOrderDetails()
 void Item :: insertItem(Order * newOrder, int type)
 {
 	if (type == 0) //buy
-		buyBook->insert(newOrder);
+	{
+		//cout << "insertItem - buy" << endl;
+		//buyBook->insert(newOrder);
+		add_buy_order(newOrder);
+	}
 	else if (type == 1) //sell
-		sellBook->insert(newOrder);
-}
-
-void Item :: printItemQueues()
-{
-	cout << "Item: " << itemName << endl;
-	cout << "Buy book: " << endl;
-	Order ** orders = buyBook->getOrderBook();
-	int ordersSize = buyBook->getHeapSize();
-	for (int i = 0; i < ordersSize; ++i)
 	{
-		cout << "----------------" << endl;
-		cout << orders[i]->get_item() << endl;
-		cout << orders[i]->get_quantity() << endl;
-		cout << orders[i]->get_price() << endl;
-		cout << "----------------" << endl;
-	}
-	cout << "Sell book: " << endl;
-	orders = sellBook->getOrderBook();
-	ordersSize = sellBook->getHeapSize();
-	for (int i = 0; i < ordersSize; ++i)
-	{
-		cout << "----------------" << endl;
-		cout << orders[i]->get_item() << endl;
-		cout << orders[i]->get_quantity() << endl;
-		cout << orders[i]->get_price() << endl;
-		cout << "----------------" << endl;
+		//cout << "insertItem - sell" << endl;
+		//sellBook->insert(newOrder);
+		add_sell_order(newOrder);
 	}
 }
 
-Order ** Item :: getBuyBook()
-{
-	return buyBook->getOrderBook();
+void Item :: add_buy_order(Order *o){
+		// find position 
+		int i=0;
+		while(i < buy_book.size() && o->get_price() < buy_book[i]->get_price()){
+			i++;
+		}
+		// insert to the position
+		buy_book.insert(buy_book.begin()+i, o);
+		// perform trade
+		trade_orders();
+	}
+
+void Item :: add_sell_order(Order *o){
+		// find position
+		int i=0;
+		while(i < sell_book.size() && o->get_price() > sell_book[i]->get_price()){
+			i++;
+		}
+		// insert to the position
+		sell_book.insert(sell_book.begin()+i, o);
+		// perform trade
+		trade_orders();
+	}
+
+// perform trade 
+void Item :: trade_orders(){
+	// check whether trade can be performed or not
+	if(buy_book.size() > 0 && sell_book.size() > 0){
+		// check if top matches -- top is at index 0
+		// CASE 1: TOP OF BUY AND SELL BOOK MATCH
+		///////////////////////////////////////////////////////////
+		//			BUY				SELL
+		//---------------------------------------------------------
+		//			10				10
+		//			9				11
+		// CASE 2: TOP OF BUY IS MORE THAN TOP OF SELL
+		///////////////////////////////////////////////////////////
+		//			BUY				SELL
+		//---------------------------------------------------------
+		//			14				11
+		//			9				12
+		//			7				13
+		//			6				16
+		if(buy_book[0]->get_price() >= sell_book[0]->get_price()){
+			// proper price match
+			// set current price
+			price = buy_book[0]->get_price();
+			// check quantity
+			if(buy_book[0]->get_remaining_quantity() == sell_book[0]->get_remaining_quantity()){
+				// BOTH HAVE SAME QUANTITY
+				// set the match of order
+				buy_book[0]->set_match(sell_book[0]->get_trader());
+				sell_book[0]->set_match(buy_book[0]->get_trader());
+				buy_book[0]->set_status('F');
+				sell_book[0]->set_status('F');
+				buy_book[0]->set_remaining_quantity(0);
+				sell_book[0]->set_remaining_quantity(0);
+				// remove both orders
+				buy_book.erase(buy_book.begin());
+				sell_book.erase(sell_book.begin());
+			}
+			else if(buy_book[0]->get_remaining_quantity() > sell_book[0]->get_remaining_quantity()){
+				// TOP OF THE BUY BOOK HAS MORE QUANTITY
+				// set match of sell order
+				sell_book[0]->set_match(buy_book[0]->get_trader());
+				sell_book[0]->set_status('F');
+				// update quantity of buy order
+				cout << buy_book[0]->get_remaining_quantity() << "," << sell_book[0]->get_remaining_quantity() << "----------------" << endl;
+				buy_book[0]->set_remaining_quantity(buy_book[0]->get_remaining_quantity() - sell_book[0]->get_remaining_quantity());
+				sell_book[0]->set_remaining_quantity(0);
+				// remove sell order
+				sell_book.erase(sell_book.begin());
+			}
+			else{
+				// TOP OF SELL BOOK HAS MORE QUANTITY
+				// set match of buy order
+				buy_book[0]->set_match(sell_book[0]->get_trader());
+				buy_book[0]->set_status('F');
+				// update quantity of sell order
+				sell_book[0]->set_remaining_quantity(sell_book[0]->get_remaining_quantity() - buy_book[0]->get_remaining_quantity());
+				buy_book[0]->set_remaining_quantity(0);
+				// remove buy order
+				buy_book.erase(buy_book.begin());
+			}
+			// recursive call to see if other orders can match or not
+			trade_orders();
+		}
+		// CASE 3: SELL AND BUY DONT MATCH
+		///////////////////////////////////////////////////////////
+		//			BUY				SELL
+		//---------------------------------------------------------
+		//			10				12
+		//			9				14
+		//			7				16
+		else {
+			// TRADE IS NOT POSSIBLE
+			// EXIT
+		}
+	}
 }
 
-Order ** Item :: getSellBook()
+char returnStr[10240] = {'\0'};
+/*char * Item :: printItemQueues()
 {
-	return sellBook->getOrderBook();
+	sprintf(returnStr,"%s","////////////////////////////////////////////////////////////////////////////////\n");
+	strcat(returnStr,"ORDER BOOK FOR ");
+	strcat(returnStr,itemName.c_str());
+	strcat(returnStr,"\n********************************************************************************\n");
+	strcat(returnStr,"\t\tBUY PRICE(Quantity)\t\tSELL PRICE(Quantity)\n");
+	strcat(returnStr,"********************************************************************************\n");
+	for(int i=0; i<buy_book.size() || i<sell_book.size(); i++){
+		char orderDetails[1024] = {'\0'};
+		if(i < buy_book.size()){
+			sprintf(orderDetails,"\t\t\t%d(%d)\t\t",buy_book[i]->get_price(),buy_book[i]->get_remaining_quantity());
+			//cout << "\t\t\t" << buy_book[i]->get_price() << "(" << buy_book[i]->get_remaining_quantity() << ")\t\t";  
+		}
+		else{
+			strcat(orderDetails,"\t\t\t\t\t");
+			//cout << "\t\t\t\t\t\t";
+		}
+		if(i < sell_book.size()){
+			sprintf(orderDetails,"\t\t\t%d(%d)\t\t",sell_book[i]->get_price(),sell_book[i]->get_remaining_quantity());
+			//cout << "\t\t\t" << sell_book[i]->get_price() << "(" << sell_book[i]->get_remaining_quantity() << ")";  
+		}
+		strcat(orderDetails,"\n");
+		strcat(returnStr,orderDetails);
+		//cout << endl;
+	}
+	strcat(returnStr,"////////////////////////////////////////////////////////////////////////////////\n");
+	return returnStr;
+}*/
+
+vector<Order *> Item :: getBuyBook()
+{
+	return buy_book;
+}
+
+vector<Order *> Item :: getSellBook()
+{
+	return sell_book;
 }
 
 int Item :: getBuyBookSize()
 {
-	return buyBook->getHeapSize();
+	return buy_book.size();
 }
 
 int Item :: getSellBookSize()
 {
-	return sellBook->getHeapSize();
+	return sell_book.size();
 }

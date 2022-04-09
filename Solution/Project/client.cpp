@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
 	const char * serverIP = argv[1];
 	int PORT = atoi(argv[2]);
-	int clientSocket = 0, serverValue, i;
+	int clientSocket = 0, serverValue, i, j;
 	struct sockaddr_in serverAddress;
 	char buffer[1024] = {0};
 	char * tempText;
@@ -46,6 +46,12 @@ int main(int argc, char *argv[])
 	while (strcmp(buffer, "close") != 0)
 	{
 		cout << "New Traders are welcome to register/login here" << endl;
+		if (strcmp(buffer,"logout") == 0)
+		{
+			cout << "You are not logged in!" << endl;
+			cin >> buffer;
+			continue;
+		}
 		while (strcmp(buffer, "logout") != 0)
 		{
 			cin >> buffer;
@@ -122,28 +128,57 @@ int main(int argc, char *argv[])
 			}
 			else if (strcmp(buffer,"order") == 0) //if want to see order status
 			{
-				read(clientSocket, temp, 1024);
-				cout << temp << endl;
-				if (strcmp(temp,"Please Login!") != 0)
+				char tempOText[1024] = {'\0'};
+				read(clientSocket, tempOText, 1024);
+				cout << tempOText << endl;
+				if (strcmp(tempOText,"Please Login!") != 0)
 				{
-					char * itemDetails;
-					read(clientSocket, itemDetails, 1024);
-					cout << itemDetails << endl;
+					int loop = atoi(tempOText);
+					cout << "Format: BUY PRICE(Quantity)\tSELL PRICE(Quantity)\n" << endl;
+					for (j = 0; j < loop; ++j)
+					{
+						char itemDetails[10240] = {'\0'};
+						read(clientSocket, itemDetails, 10240);
+						cout << "////////////////////////////////////////////////////////////////////////////////" << endl;
+						cout << "ORDER BOOK FOR ";
+						cout << itemDetails << endl;
+					}
 				}
 			}
 			else if (strcmp(buffer,"trade") == 0) //if want to see trade status
 			{
-				read(clientSocket, temp, 1024);
-				cout << temp << endl;
+				char tempOText[1024] = {'\0'};
+				read(clientSocket, tempOText, 1024);
+				cout << tempOText << endl;
+				if (strcmp(tempOText,"Please Login!") != 0)
+				{
+					int loop = atoi(tempOText);
+					cout << "////////////////////////////////////////////////////////////////////////////////" << endl;
+					cout << "TRADE BOOK FOR ";
+					read(clientSocket, tempOText, 1024);
+					cout << tempOText << endl;
+					cout << "********************************************************************************" << endl;
+					cout << "ITEM\tQUANTITY\tPRICE\tTYPE\tSTATUS\t\tCOUNTER-PARTY" << endl;
+					cout << "********************************************************************************" << endl;
+					for (j = 0; j < loop; ++j)
+					{
+						char itemDetails[10240] = {'\0'};
+						read(clientSocket, itemDetails, 10240);
+						cout << itemDetails << endl;
+					}
+					/*read(clientSocket, temp, 1024);
+					cout << temp << endl;*/
+				}
 			}
-			/*if (strcmp(temp,"Please Login!") != 0)
+			else if (strcmp(buffer, "logout") != 0)
 			{
-				tempText = (char *)malloc(1024*sizeof(char));
-				serverValue = read(clientSocket, tempText, 1024);
-				cout << tempText << endl;
-			}*/
+				cout << "What are you saying?" << endl;
+			}
 		}
 		if (isClosed) break;
+		tempText = (char *)malloc(1024*sizeof(char));
+		serverValue = read(clientSocket, tempText, 1024);
+		cout << tempText << endl;
 		cout << "Waiting for Traders... (Type close to close the client)" << endl;
 		cin >> buffer;
 	}
