@@ -149,9 +149,9 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
-		for (i = 0; i < maxClients; ++i)
+		for (i = 0; i < maxClients; ++i) //for each client
 		{
-			sd = allClients[i];
+			sd = allClients[i]; //get the client id
 			if (FD_ISSET(sd,&fds)) //if there is some request from any trader
 			{
 				if ((clientValue = read(sd, buffer, sizeof(buffer))) == 0) //if the request is for closing
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
 					buffer[clientValue] = '\0';
                     if (strcmp(buffer,"register") == 0) //for registration
                     {
-                    	if (traderIndex == noOfTraders)
+                    	if (traderIndex == noOfTraders) //if 5 traders have already registered, no more registrations can be done
                     	{
                     		cout << traderIndex << "," << noOfTraders << endl;
                     		sprintf(temp,"%s","No more registrations possible");
@@ -176,12 +176,13 @@ int main(int argc, char *argv[])
                     		continue;
                     	}
                     	char uName[100] = {'\0'}, uId[50] = {'\0'}, password[50] = {'\0'};
+                    	//read name, id and password from client
                     	clientValue = read(sd, uName, sizeof(uName));
                     	clientValue = read(sd, uId, sizeof(uId));
                     	clientValue = read(sd, password, sizeof(password));
-                    	//printf("'%s','%s','%s'\n",uName,uId,password);
                     	if (uIds.find(uId) == uIds.end()) //if new trader
                     	{
+                    		//write to traders file
                     		ofstream outputFile;
                     		outputFile.open("traders.txt",std::ios_base::app);
                     		outputFile << uName << " " << uId << " " << password << endl;
@@ -197,17 +198,18 @@ int main(int argc, char *argv[])
                     	}
                         send(sd, temp, strlen(temp), 0);
                     }
-                    else if (strcmp(buffer,"login") == 0)
+                    else if (strcmp(buffer,"login") == 0) //for login
                     {
                     	char uId[50] = {'\0'}, password[50] = {'\0'};
+                    	//read the id password from client
                     	clientValue = read(sd, uId, sizeof(uId));
                     	clientValue = read(sd, password, sizeof(password));
-                    	if (uIds.find(uId) == uIds.end())
+                    	if (uIds.find(uId) == uIds.end()) //if non-existing user
                     	{
                     		sprintf(temp,"%s","Trader does not exist! Please Register!");
                     		send(sd, temp, strlen(temp), 0);
                     	}
-                    	else
+                    	else //if existing user
                     	{
                     		bool isFound = false;
                     		for (j = 0; j < traderIndex; ++j)
@@ -215,55 +217,51 @@ int main(int argc, char *argv[])
                     			char storedName[100] = {'\0'}, storedId[50] = {'\0'}, storedPw[50] = {'\0'};
                     			strcpy(storedId,traderDetails[j]->getUserId().c_str());
                     			strcpy(storedPw,traderDetails[j]->getPassword().c_str());
-                    			//cout << storedId << " " << storedPw << endl;
-                    			if (strcmp(uId,storedId) == 0 && strcmp(password,storedPw) == 0)
+                    			if (strcmp(uId,storedId) == 0 && strcmp(password,storedPw) == 0) //match the id password, if matched correctly
                     			{
-                    				if (traderDetails[j]->getLoginStatus())
+                    				if (traderDetails[j]->getLoginStatus()) //if already logged in 
                     				{
                     					isFound = true;
-                    					sprintf(temp,"%s","You can not login on multiple devices!");
+                    					sprintf(temp,"%s","You can not login on multiple devices!"); //don't allow mulitple logins
                     					send(sd, temp, strlen(temp), 0);
                     					break;
                     				}
                     				strcpy(storedName,traderDetails[j]->getName().c_str());
-                    				traderDetails[j]->setNumber(sd);
+                    				traderDetails[j]->setNumber(sd); //set the unique client id to the trader in the server
                     				clientTraderMap[sd] = j; //store the trader's index to the map
-                    				traderDetails[j]->setLoginStatus(true);
+                    				traderDetails[j]->setLoginStatus(true); //set login status as true
                     				getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
 			                        char tempMsg[1024] = "";
-			                        sprintf(tempMsg,"%s logged in at %s, port: %d\n",storedName,inet_ntoa(address.sin_addr),ntohs(address.sin_port));
+			                        sprintf(tempMsg,"%s logged in at %s, port: %d\n",storedName,inet_ntoa(address.sin_addr),ntohs(address.sin_port)); //display login message at server
 			                        send(sd, tempMsg, strlen(tempMsg), 0);
 			                        isFound = true;
 			                        break;
                     			}
                     		}
-                    		if (!isFound)
+                    		if (!isFound) //if the user is not found
                     		{
-                    			sprintf(temp,"%s","Wrong Credentials! Try again!");
+                    			sprintf(temp,"%s","Wrong Credentials! Try again!"); //print wrong credentials
                     			send(sd, temp, strlen(temp), 0);
                     		}
                     	}
                     }
-                    else if (strcmp(buffer,"buy") == 0)
+                    else if (strcmp(buffer,"buy") == 0) //for buy order
                     {
                     	char itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'}, itemQuantity[8] = {'\0'};
-                    	getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
-                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                    	getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength); //get the trader details
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus()) //if logged in
                     	{
                     		send(sd, itemList, strlen(itemList), 0);
+                    		//get order details from client
                     		clientValue = read(sd, itemNumber, sizeof(itemNumber));
                     		clientValue = read(sd, itemPrice, sizeof(itemPrice));
                     		clientValue = read(sd, itemQuantity, sizeof(itemQuantity));
+                    		//print at server
                     		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to buy Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << " and net quantity " << itemQuantity << endl;
+                    		//create a new order and add to queue
                     		Order * newOrder = new Order(traderDetails[clientTraderMap[sd]],atoi(itemNumber)-1,atoi(itemQuantity),atoi(itemPrice),0);
-                    		/*cout << "Before Trade-" << endl;
-                    		items[atoi(itemNumber)-1]->printItemQueues();*/
                     		items[atoi(itemNumber)-1]->insertItem(newOrder,0);
                     		traderDetails[clientTraderMap[sd]]->add_order(newOrder);
-                    		//cout << "After Trade-" << endl;
-                    		//items[atoi(itemNumber)-1]->printItemQueues();
-                    		/*sprintf(temp,"%s","Buy request received successfully");
-                        	send(sd, temp, strlen(temp), 0);*/
                     	}
                     	else
                     	{
@@ -271,26 +269,23 @@ int main(int argc, char *argv[])
                         	send(sd, temp, strlen(temp), 0);
                     	}
                     }
-                    else if (strcmp(buffer,"sell") == 0)
+                    else if (strcmp(buffer,"sell") == 0) //for sell order
                     {
                     	char itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'}, itemQuantity[8] = {'\0'};
-                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
-                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength); //get the trader details		
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus()) //if logged in
                     	{
                     		send(sd, itemList, strlen(itemList), 0);
+                    		//get order details from client
                     		clientValue = read(sd, itemNumber, sizeof(itemNumber));
                     		clientValue = read(sd, itemPrice, sizeof(itemPrice));
                     		clientValue = read(sd, itemQuantity, sizeof(itemQuantity));
+                    		//print at server
                     		cout << traderDetails[clientTraderMap[sd]]->getName() << " wants to sell Item: " << item_names[atoi(itemNumber)-1] << " at price " << itemPrice << " and net quantity " << itemQuantity << endl;
+                    		//create a new order and add to queue
                     		Order * newOrder = new Order(traderDetails[clientTraderMap[sd]],atoi(itemNumber)-1,atoi(itemQuantity),atoi(itemPrice),1);
-                    		/*cout << "Before Trade-" << endl;
-                    		items[atoi(itemNumber)-1]->printItemQueues();*/
                     		items[atoi(itemNumber)-1]->insertItem(newOrder,1);
                     		traderDetails[clientTraderMap[sd]]->add_order(newOrder);
-                    		//cout << "After Trade-" << endl;
-                    		//items[atoi(itemNumber)-1]->printItemQueues();
-                    		/*sprintf(temp,"%s","Sell request received successfully");
-                        	send(sd, temp, strlen(temp), 0);*/
                     	}
                     	else
                     	{
@@ -298,39 +293,41 @@ int main(int argc, char *argv[])
                         	send(sd, temp, strlen(temp), 0);
                     	}
                     }
-                    else if (strcmp(buffer,"order") == 0)
+                    else if (strcmp(buffer,"order") == 0) //for viewing best priced orders
                     {
-                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);
-                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength); //get the trader details
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus()) //if logged in
                     	{
                     		sprintf(temp,"%d",noOfItems);
-                    		send(sd, temp, strlen(temp), 0);
+                    		send(sd, temp, strlen(temp), 0); //send the total number of items
                     		sleep(1);
-                    		for (j = 0; j < noOfItems; ++j)
+                    		for (j = 0; j < noOfItems; ++j) //for each item
                     		{
                     			char orderStatus[10240] = {'\0'};
+                    			//get the buy book and sell book
                     			vector<Order *> buyOrders = items[j]->getBuyBook();
                     			vector<Order *> sellOrders = items[j]->getSellBook();
+                    			//store the item name
                     			sprintf(orderStatus,"%s\n",items[j]->getItemName());
                     			for (k = 0; k < buyOrders.size() || k < sellOrders.size(); ++k)
                     			{
-                    				//cout << k << " " << buyOrders.size() << " " << sellOrders.size() << endl;
                     				char singleBuyOrder[1024] = {'\0'}, singleSellOrder[1024] = {'\0'};
                     				if(k < buyOrders.size()){
-                    					sprintf(singleBuyOrder,"%d(%d)\t",buyOrders[k]->get_price(),buyOrders[k]->get_remaining_quantity());
+                    					sprintf(singleBuyOrder,"%d(%d)\t\t",buyOrders[k]->get_price(),buyOrders[k]->get_remaining_quantity()); //append the top buy order
                     				}
 									else{
-										sprintf(singleBuyOrder,"%s","\t");
+										sprintf(singleBuyOrder,"%s","\t\t");
 									}
 									if(k < sellOrders.size()){
-										sprintf(singleSellOrder,"%d(%d)\n",sellOrders[k]->get_price(),sellOrders[k]->get_remaining_quantity());
+										sprintf(singleSellOrder,"%d(%d)\n",sellOrders[k]->get_price(),sellOrders[k]->get_remaining_quantity()); //append the top sell order
                     				}
                     				else
                     					sprintf(singleSellOrder,"%s","\n");
+                    				//append buy and sell order to a main string
                     				strcat(orderStatus,singleBuyOrder);
                     				strcat(orderStatus,singleSellOrder);
                     			}
-                    			//cout << orderStatus << endl;
+                    			//send the main string to client
                     			send(sd, orderStatus, strlen(orderStatus), 0);
                     			sleep(1);
                     		}
@@ -341,54 +338,27 @@ int main(int argc, char *argv[])
                         	send(sd, temp, strlen(temp), 0);
                     	}
                     }
-                    else if (strcmp(buffer,"trade") == 0)
+                    else if (strcmp(buffer,"trade") == 0) //for viewing the matched trades
                     {
-                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
-                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                        getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength); //get the trader details
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus()) //if logged in
                     	{
-                    		vector<Order *> all_trades = traderDetails[clientTraderMap[sd]]->getAllTrades();
+                    		vector<Order *> all_trades = traderDetails[clientTraderMap[sd]]->getAllTrades(); //get the trades
 							char orderStatus[10240] = {'\0'};
-							/*strcat(orderStatus,"////////////////////////////////////////////////////////////////////////////////\n");
-							strcat(orderStatus,"TRADE BOOK FOR ");
-							strcat(orderStatus,traderDetails[clientTraderMap[sd]]->getName().c_str());
-							strcat(orderStatus,"\n********************************************************************************\n");
-							strcat(orderStatus,"ITEM\tQUANTITY\tPRICE\tTYPE\tSTATUS\t\tCOUNTER-PARTY\n");
-							strcat(orderStatus,"********************************************************************************\n");
-							*/
 							sprintf(temp,"%ld",all_trades.size());
-                    		send(sd, temp, strlen(temp), 0);
+                    		send(sd, temp, strlen(temp), 0); //send no of trades to client
                     		sleep(1);
-                    		send(sd, traderDetails[clientTraderMap[sd]]->getName().c_str(), strlen(traderDetails[clientTraderMap[sd]]->getName().c_str()), 0);
+                    		send(sd, traderDetails[clientTraderMap[sd]]->getName().c_str(), strlen(traderDetails[clientTraderMap[sd]]->getName().c_str()), 0); //send trader name to client
                     		sleep(1);
-							for(int i=0; i<all_trades.size(); i++)
+							for(int i=0; i<all_trades.size(); i++) //for each trade print everything along with status
 							{
 								char tradeDetails[1024] = {'\0'};
 								sprintf(tradeDetails,"%s\t%d\t\t%d\t%s\t%s\t",item_names[all_trades[i]->get_item_index()],all_trades[i]->get_remaining_quantity(),all_trades[i]->get_price(),all_trades[i]->get_type() == 0 ? "BUY" : "SELL",all_trades[i]->get_status() == 'Q' ? "NOT MATCHED" : "MATCHED\t");
-								/*strcat(tradeDetails,item_names[all_trades[i]->get_item_index()]);
-								strcat(tradeDetails,"\t");
-								strcat(tradeDetails,all_trades[i]->get_quantity());
-								strcat(tradeDetails,"\t\t");
-								strcat(tradeDetails,all_trades[i]->get_price());
-								strcat(tradeDetails,"\t");
-								strcat(tradeDetails,all_trades[i]->get_type() == 0 ? "BUY" : "SELL");
-								strcat(tradeDetails,"\t");
-								strcat(tradeDetails,all_trades[i]->get_status() == 'Q' ? "NOT MATCHED" : "MATCHED\t");
-								strcat(tradeDetails,"\t");*/
-								//cout << item_names[all_trades[i]->get_item_index()] << "\t" << all_trades[i]->get_quantity() << "\t\t" << all_trades[i]->get_price() << "\t" << (all_trades[i]->get_type() == 0 ? "BUY" : "SELL") << "\t" << (all_trades[i]->get_status() == 'Q' ? "NOT MATCHED" : "MATCHED\t")<< "\t";
 								if (all_trades[i]->get_status() == 'F')
 									strcat(tradeDetails,all_trades[i]->get_match()->getName().c_str());
-									//cout << all_trades[i]->get_match()->getName();  
-								//strcat(tradeDetails,"\n");
 								send(sd, tradeDetails, strlen(tradeDetails), 0);
 								sleep(1);
-								//strcat(orderStatus,tradeDetails);
-								//cout << endl;
 							}
-							//strcat(orderStatus,"////////////////////////////////////////////////////////////////////////////////\n");
-							//cout << "////////////////////////////////////////////////////////////////////////////////" << endl;
-
-                    		//sprintf(temp,"%s","Sending trade status");
-                    		//send(sd, orderStatus, strlen(orderStatus), 0);
                     	}
                     	else
                     	{
@@ -396,14 +366,14 @@ int main(int argc, char *argv[])
                         	send(sd, temp, strlen(temp), 0);
                     	}
                     }
-                    else if (strcmp(buffer,"logout") == 0)
+                    else if (strcmp(buffer,"logout") == 0) //for logout
                     {
-                    	getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength);		
-                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus())
+                    	getpeername(sd, (struct sockaddr *)&address, (socklen_t *)&addressLength); //get the trader details		
+                    	if (traderDetails[clientTraderMap[sd]]->getLoginStatus()) //if logged in
                     	{
-                    		traderDetails[clientTraderMap[sd]]->setLoginStatus(false);
-	        				sprintf(temp,"%s logged out from %s, port: %d\n",traderDetails[clientTraderMap[sd]]->getName().c_str(),inet_ntoa(address.sin_addr),ntohs(address.sin_port));
-	                        send(sd, temp, strlen(temp), 0);
+                    		traderDetails[clientTraderMap[sd]]->setLoginStatus(false); //set login status to false
+	        				sprintf(temp,"%s logged out from %s, port: %d\n",traderDetails[clientTraderMap[sd]]->getName().c_str(),inet_ntoa(address.sin_addr),ntohs(address.sin_port)); //display on server
+	                        send(sd, temp, strlen(temp), 0); //send message to client
 	                    }
 	                    else
 	                    {
@@ -411,7 +381,7 @@ int main(int argc, char *argv[])
 	                    	send(sd, temp, strlen(temp), 0);
 	                    }
                     }
-                    else if (strcmp(buffer,"close") == 0)
+                    else if (strcmp(buffer,"close") == 0) //for closing
                     {
                         sprintf(temp,"%s","Thanks for using the Application!");
                         send(sd, temp, strlen(temp), 0);
@@ -421,16 +391,7 @@ int main(int argc, char *argv[])
 						cout << "Client on " << inet_ntoa(address.sin_addr) << " disconnected, port: " << ntohs(address.sin_port) << endl;
 						close(sd); //close the socket
 						allClients[i] = 0;
-
-						/*//dummy print part to be removed
-						for (j = 0; j < noOfItems; ++j)
-							items[j]->printItemQueues();*/
                     }
-                    /*else
-                    {
-                       	sprintf(temp,"%s","What are you saying?");
-                        send(sd, temp, strlen(temp), 0);
-                    }*/
 				}
 			}
 		}

@@ -60,7 +60,6 @@ int main(int argc, char *argv[])
 				isClosed = true;
 				break;
 			}
-			//cout << buffer;
 			send(clientSocket, buffer, strlen(buffer), 0);
 			char uName[100] = {'\0'}, uId[50] = {'\0'}, password[50] = {'\0'}, itemNumber[5] = {'\0'}, itemPrice[8] = {'\0'}, itemQuantity[8] = {'\0'}, temp[1024] = {'\0'};
 			if (strcmp(buffer,"register") == 0) //if want to register
@@ -106,7 +105,6 @@ int main(int argc, char *argv[])
 					scanf("%s",itemQuantity);
 					send(clientSocket, itemQuantity, strlen(itemQuantity), 0);
 				}
-				//send(clientSocket, "0", strlen("0"), 0);
 			}
 			else if (strcmp(buffer,"sell") == 0) //if want to sell
 			{
@@ -124,7 +122,6 @@ int main(int argc, char *argv[])
 					scanf("%s",itemQuantity);
 					send(clientSocket, itemQuantity, strlen(itemQuantity), 0);
 				}
-				//send(clientSocket, "1", strlen("1"), 0);
 			}
 			else if (strcmp(buffer,"order") == 0) //if want to see order status
 			{
@@ -166,8 +163,6 @@ int main(int argc, char *argv[])
 						read(clientSocket, itemDetails, 10240);
 						cout << itemDetails << endl;
 					}
-					/*read(clientSocket, temp, 1024);
-					cout << temp << endl;*/
 				}
 			}
 			else if (strcmp(buffer, "logout") != 0)
